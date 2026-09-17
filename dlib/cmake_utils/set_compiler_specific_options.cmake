@@ -24,25 +24,29 @@ endif()
 
 set(gcc_like_compilers GNU Clang  Intel)
 set(intel_archs x86_64 i386 i686 AMD64 amd64 x86)
+set(DLIB_SIMD_LEVEL NONE)
 
 
-# Setup some options to allow a user to enable SSE and AVX instruction use.  
+# Setup some options to allow a user to enable SSE and AVX instruction use.
 if ((";${gcc_like_compilers};" MATCHES ";${CMAKE_CXX_COMPILER_ID};")  AND
    (";${intel_archs};"        MATCHES ";${CMAKE_SYSTEM_PROCESSOR};") AND NOT USE_AUTO_VECTOR)
    option(USE_SSE2_INSTRUCTIONS "Compile your program with SSE2 instructions" OFF)
    option(USE_SSE4_INSTRUCTIONS "Compile your program with SSE4 instructions" OFF)
    option(USE_AVX_INSTRUCTIONS  "Compile your program with AVX instructions"  OFF)
    if(USE_AVX_INSTRUCTIONS)
+      set(DLIB_SIMD_LEVEL AVX)
       list(APPEND active_compile_opts -mavx)
       message(STATUS "Enabling AVX instructions")
    elseif (USE_SSE4_INSTRUCTIONS)
+      set(DLIB_SIMD_LEVEL SSE4)
       list(APPEND active_compile_opts -msse4)
       message(STATUS "Enabling SSE4 instructions")
    elseif(USE_SSE2_INSTRUCTIONS)
+      set(DLIB_SIMD_LEVEL SSE2)
       list(APPEND active_compile_opts -msse2)
       message(STATUS "Enabling SSE2 instructions")
    endif()
-elseif (MSVC OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC") # else if using Visual Studio 
+elseif (MSVC OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC") # else if using Visual Studio
    # Use SSE2 by default when using Visual Studio.
    option(USE_SSE2_INSTRUCTIONS "Compile your program with SSE2 instructions" ON)
    option(USE_SSE4_INSTRUCTIONS "Compile your program with SSE4 instructions" OFF)
@@ -51,9 +55,11 @@ elseif (MSVC OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC") # else if using Visu
    include(CheckTypeSize)
    check_type_size( "void*" SIZE_OF_VOID_PTR)
    if(USE_AVX_INSTRUCTIONS)
+      set(DLIB_SIMD_LEVEL AVX)
       list(APPEND active_compile_opts /arch:AVX)
       message(STATUS "Enabling AVX instructions")
    elseif (USE_SSE4_INSTRUCTIONS)
+      set(DLIB_SIMD_LEVEL SSE4)
       # Visual studio doesn't have an /arch:SSE2 flag when building in 64 bit modes.
       # So only give it when we are doing a 32 bit build.
       if (SIZE_OF_VOID_PTR EQUAL 4)
@@ -64,6 +70,7 @@ elseif (MSVC OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC") # else if using Visu
       list(APPEND active_preprocessor_switches "-DDLIB_HAVE_SSE3")
       list(APPEND active_preprocessor_switches "-DDLIB_HAVE_SSE41")
    elseif(USE_SSE2_INSTRUCTIONS)
+      set(DLIB_SIMD_LEVEL SSE2)
       # Visual studio doesn't have an /arch:SSE2 flag when building in 64 bit modes.
       # So only give it when we are doing a 32 bit build.
       if (SIZE_OF_VOID_PTR EQUAL 4)
@@ -77,6 +84,7 @@ elseif((";${gcc_like_compilers};" MATCHES ";${CMAKE_CXX_COMPILER_ID};")  AND
         ("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^arm"))
    option(USE_NEON_INSTRUCTIONS "Compile your program with ARM-NEON instructions" OFF)
    if(USE_NEON_INSTRUCTIONS)
+      set(DLIB_SIMD_LEVEL NEON)
       list(APPEND active_compile_opts -mfpu=neon)
       message(STATUS "Enabling ARM-NEON instructions")
    endif()
@@ -110,11 +118,10 @@ if (MSVC)
    # RAM.
    list(APPEND active_compile_opts_private "/MP")
 
-   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 3.3) 
+   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 3.3)
       # Clang can compile all Dlib's code at Windows platform. Tested with Clang 5
       list(APPEND active_compile_opts -Xclang)
       list(APPEND active_compile_opts -fcxx-exceptions)
    endif()
 endif()
-
 

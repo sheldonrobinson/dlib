@@ -806,13 +806,12 @@ if (NOT TARGET dlib)
    endif()
 
    target_compile_features(dlib PUBLIC cxx_std_14)
-   if((MSVC AND CMAKE_VERSION VERSION_LESS 3.11))
-      target_compile_options(dlib PUBLIC ${active_compile_opts})
-      target_compile_options(dlib PRIVATE ${active_compile_opts_private})
-   else()
-      target_compile_options(dlib PUBLIC $<$<COMPILE_LANGUAGE:CXX>:${active_compile_opts}>)
-      target_compile_options(dlib PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${active_compile_opts_private}>)
-   endif()
+   # Build-tree clients share dlib's compiler, so forward the options detected
+   # above to them. Do not put those options in the installed target, where
+   # dlibConfig.cmake recreates them for the consuming compiler's frontend.
+   target_compile_options(dlib INTERFACE "$<BUILD_INTERFACE:$<$<COMPILE_LANGUAGE:CXX>:${active_compile_opts}>>")
+   target_compile_options(dlib PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${active_compile_opts}>)
+   target_compile_options(dlib PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${active_compile_opts_private}>)
 
    # Install the library
    if (NOT DLIB_IN_PROJECT_BUILD)
