@@ -18,7 +18,7 @@ To exclude certain options in the cmake config use --no:
     --no USE_AVX_INSTRUCTIONS: will set -DUSE_AVX_INSTRUCTIONS=no
 Additional options:
     --compiler-flags: pass flags onto the compiler, e.g. --compiler-flags "-Os -Wall" passes -Os -Wall onto GCC.
-    -G: Set the CMake generator.  E.g. -G "Visual Studio 14 2015"
+    -G: Set the CMake generator.  E.g. -G "Visual Studio 17 2022"
     --clean: delete any previous build folders and rebuild.  You should do this if you change any build options
              by setting --compiler-flags or --no since the last time you ran a build.  This will
              ensure the changes take effect.
@@ -35,6 +35,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import sysconfig
 from math import floor
 
 from packaging.version import Version, parse as parse_version
@@ -190,7 +191,11 @@ class CMakeBuild(build_ext):
         if platform.system() == "Windows":
             cmake_args += ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{}={}'.format(cfg.upper(), extdir)]
             if sys.maxsize > 2**32:
-                cmake_args += ['-A', 'x64']
+                # Match the interpreter, including x64 Python emulated on ARM64.
+                if sysconfig.get_platform() == 'win-arm64':
+                    cmake_args += ['-A', 'ARM64']
+                else:
+                    cmake_args += ['-A', 'x64']
             # Do a parallel build
             build_args += ['--', '/m']
         else:
